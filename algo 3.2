@@ -1,0 +1,134 @@
+using cAlgo.API;
+using System;
+using System.IO;
+using System.Collections.Generic;
+
+namespace cAlgo.Robots
+{
+    [Robot(TimeZone = TimeZones.UTC, AccessRights = AccessRights.FullAccess)]
+    public class TradingViewBridgeBot : Robot
+    {
+        private readonly Dictionary<string, string> TimeframeFiles = new Dictionary<string, string>
+        {
+            { "5m", "C:\\TradingBridge\\tv_signal_5m.txt" },
+            { "30m", "C:\\TradingBridge\\tv_signal_30m.txt" },
+            { "1h", "C:\\TradingBridge\\tv_signal_1h.txt" }
+        };
+
+        private Dictionary<string, DateTime> LastProcessed = new Dictionary<string, DateTime>();
+
+        protected override void OnStart()
+        {
+            Print("✅ TradingView Multi-Timeframe Bot started.");
+            foreach (var kvp in TimeframeFiles)
+            {
+                LastProcessed[kvp.Key] = DateTime.MinValue;
+            }
+        }
+
+        protected override void OnTick()
+        {
+            foreach (var tf in TimeframeFiles.Keys)
+            {
+                var filePath = TimeframeFiles[tf];
+                var file = new FileInfo(filePath);
+                if (!file.Exists || file.LastWriteTime <= LastProcessed[tf])
+                    continue;
+
+                LastProcessed[tf] = file.LastWriteTime;
+
+                try
+                {
+                    var json = File.ReadAllText(filePath);
+                    var signal = ParseSignal(json);
+                    if (signal == null)
+                    {
+                        Print($"❌ Failed to parse signal for {tf}.");
+                        continue;
+                    }
+
+                    // Only execute long positions
+                    if (signal.Action != "buy")
+                    {
+                        Print($"❌ Ignored short signal for {signal.Symbol}. Only long trades allowed.");
+                        continue;
+                    }
+
+                    var symbol = Symbols.GetSymbol(signal.Symbol);
+                    if (symbol == null)
+                    {
+                        Print($"❌ Symbol not found: {signal.Symbol}");
+                        continue;
+                    }
+
+                    double lots = signal.Volume;
+                    double volumeInUnits = symbol.QuantityToVolumeInUnits(lots);
+                    Print($"📦 [{tf}] {lots} lots → {volumeInUnits} volume units for {symbol.Name}.");
+
+                    if (lots < 0.01 || lots > 5)
+                    {
+                        Print($"❌ Volume rejected: {lots} lots — must be between 0.01 and 5.");
+                        continue;
+                    }
+
+                    TradeType direction = TradeType.Buy;
+                    double entryPrice = symbol.Ask;
+
+                    double tp = entryPrice + 100 * symbol.PipSize; // Fixed TP = 10 pips
+                    double sl = entryPrice - 50 * symbol.PipSize;  // Fixed SL = 5 pips
+
+                    string comment = $"TF: {tf}";
+
+                    ExecuteMarketOrder(direction, symbol.Name, volumeInUnits, "TVBot", sl, tp, comment);
+                    Print($"✅ [{tf}] BUY {symbol.Name} | {lots} lot | TP: {tp} | SL: {sl}");
+                }
+                catch (Exception ex)
+                {
+                    Print($"❌ Error for {tf}: {ex.Message}");
+                }
+            }
+        }
+
+        private class SignalData
+        {
+            public string Symbol { get; set; }
+            public string Action { get; set; }
+            public double Volume { get; set; }
+            public double TP { get; set; }
+            public double SL { get; set; }
+        }
+
+        private SignalData ParseSignal(string json)
+        {
+            try
+            {
+                string Get(string key)
+                {
+                    var pattern = $"\"{key}\"";
+                    int keyIndex = json.IndexOf(pattern);
+                    if (keyIndex == -1) throw new Exception($"Key '{key}' not found.");
+
+                    int colonIndex = json.IndexOf(":", keyIndex);
+                    int commaIndex = json.IndexOf(",", colonIndex);
+                    int endIndex = commaIndex == -1 ? json.IndexOf("}", colonIndex) : commaIndex;
+
+                    return json.Substring(colonIndex + 1, endIndex - colonIndex - 1).Trim().Trim('"');
+                }
+
+                return new SignalData
+                {
+                    Symbol = Get("symbol"),
+                    Action = Get("action").ToLower(),
+                    Volume = double.Parse(Get("volume")),
+                    TP = double.Parse(Get("tp")),
+                    SL = double.Parse(Get("sl"))
+                };
+            }
+            catch (Exception ex)
+            {
+                Print("❌ Parse error:", ex.Message);
+                return null;
+            }
+        }
+    }
+}

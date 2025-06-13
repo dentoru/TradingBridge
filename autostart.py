@@ -1,12 +1,19 @@
-import subprocess, os
+import subprocess
+import os
 
-basedir = os.path.dirname(__file__)
-ngrok_path = os.path.join(basedir, 'ngrok', 'ngrok.exe')
-flask_path = os.path.join(basedir, 'core', 'tv_server.py')
+# Get the full path to the project base directory
+basedir = os.path.dirname(os.path.abspath(__file__))
 
-# Start Flask webhook server
-subprocess.Popen(['python', flask_path])
-# Start ngrok tunnel
-subprocess.Popen([ngrok_path, 'http', '80'])
+# Define script and executable paths
+flask_script = os.path.join(basedir, 'core', 'tv_server.py')
+ngrok_exe = os.path.join(basedir, 'ngrok', 'ngrok.exe')
 
-print("✅ Flask + ngrok launched.")
+# Launch Flask webhook server
+print("🚀 Launching Flask webhook...")
+subprocess.Popen(['python', flask_script])
+
+# Launch ngrok to expose port 80
+print("🌐 Launching ngrok tunnel on port 80...")
+subprocess.Popen([ngrok_exe, 'http', '80'])
+
+print("✅ System started: Flask + Ngrok")

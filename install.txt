@@ -1,0 +1,100 @@
+# TradingBridge Installation Guide (install.txt)
+
+This guide will help you install and test the full TradingBridge system:
+TradingView → Flask → MT5 + cTrader
+
+---
+
+## ✅ Prerequisites:
+- Windows PC
+- MetaTrader 5 installed & logged in
+- cTrader platform installed
+- Python 3.x installed (https://python.org)
+- Ngrok account (https://ngrok.com)
+
+---
+
+## 📁 Folder Setup
+
+Download or clone the GitHub repo:
+https://github.com/dentoru/TradingBridge
+
+### Folder Structure Should Look Like:
+TradingBridge/
+├── core/
+│   ├── tv_server.py
+│   ├── mt5_bridge.py
+│   ├── send_test_signal.py
+├── tools/
+├── data/
+├── cbot/
+├── ngrok/
+│   └── ngrok.exe
+├── autostart.py
+├── requirements.txt
+├── install.txt
+
+---
+
+## 🔧 Step 1: Install Python Packages
+
+Open CMD or PowerShell:
+cd C:\TradingBridge
+pip install -r requirements.txt
+
+---
+
+## 🧠 Step 2: Set Up MetaTrader 5
+- Open MT5
+- Go to Tools > Options > Expert Advisors
+- Enable:
+  - ✅ Allow automated trading
+  - ✅ Allow DLL imports
+- MT5 must be logged in and running
+
+---
+
+## 🔐 Step 3: Set Up Ngrok
+- Place ngrok.exe in the TradingBridge/ngrok/ folder
+- Run once:
+  ngrok config add-authtoken <your_ngrok_token>
+
+---
+
+## 🚀 Step 4: Start the System
+In the root folder:
+python autostart.py
+
+- Flask server starts (port 80)
+- Ngrok creates public webhook URL
+
+Copy the URL from ngrok, e.g.:
+https://e2d1-xxx-xxx-xxx.ngrok-free.app/webhook
+Paste this into TradingView alert settings.
+
+---
+
+## 📤 Step 5: Send a Test Signal
+Run this to simulate TradingView:
+python core/send_test_signal.py
+
+Check:
+- ✅ Terminal shows success messages
+- ✅ Trade opens in MetaTrader 5
+- ✅ Signal saved to data/ for cTrader
+
+---
+
+## 🛠 Optional: Auto-Start on Boot
+- Add shortcut to python autostart.py in:
+  shell:startup
+
+---
+
+## ✅ Success!
+You now have a working TradingBridge bot setup.
+
+You can modify strategies, TP/SL, symbols, or timeframes via TradingView or send_test_signal.py.
+
+Created by: Toru + ChatGPT
+Last updated: June 2025
